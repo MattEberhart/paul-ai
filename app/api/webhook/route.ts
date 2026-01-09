@@ -44,6 +44,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Ignore messages from bots (including paul-ai itself)
+    if (payload.sender_type === 'bot') {
+      return NextResponse.json({ status: 'ok', action: 'ignored', reason: 'bot_message' });
+    }
+
     // Check if bot is mentioned
     const isMentioned = GroupMeClient.isBotMentioned(payload.text, BOT_NAME);
 
@@ -76,8 +81,14 @@ export async function POST(req: NextRequest) {
     const messages = await groupMeClient.fetchMessagesInRange(dateRange.start, dateRange.end);
     console.log(`Fetched ${messages.length} messages`);
 
+    // Filter out paul-ai's own messages from analysis (ignore bot's own roster posts)
+    const filteredMessages = messages.filter(
+      (msg) => msg.name.toLowerCase() !== BOT_NAME.toLowerCase()
+    );
+    console.log(`Filtered to ${filteredMessages.length} messages (excluded ${messages.length - filteredMessages.length} bot messages)`);
+
     // Analyze messages with Groq
-    const analysis = await groqClient.analyzeMessages(messages);
+    const analysis = await groqClient.analyzeMessages(filteredMessages);
     console.log('Analysis complete:', {
       confirmed: analysis.confirmedPlayers.length,
       plusOnes: analysis.plusOnes.length,
@@ -97,7 +108,7 @@ export async function POST(req: NextRequest) {
       status: 'ok',
       action: 'processed',
       intent: intent,
-      messageCount: messages.length,
+      messageCount: filteredMessages.length,
       playerCount: analysis.totalCount,
     });
   } catch (error) {
