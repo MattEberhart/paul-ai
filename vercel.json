@@ -1,16 +1,1 @@
-{
-  "version": 2,
-  "outputDirectory": "public",
-  "builds": [
-    {
-      "src": "api/**/*.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    }
-  ]
-}
+{}

@@ -1,24 +1,16 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { GroupMeWebhookPayload } from '../../types';
-import { GroupMeClient } from '../../lib/groupme';
-import { GroqClient } from '../../lib/groq';
-import { getThisWeekRange, getLastWeekRange } from '../../lib/dateUtils';
-import { formatRosterResponse } from '../../lib/messageParser';
+import { NextRequest, NextResponse } from 'next/server';
+import type { GroupMeWebhookPayload } from '@/types';
+import { GroupMeClient } from '@/lib/groupme';
+import { GroqClient } from '@/lib/groq';
+import { getThisWeekRange, getLastWeekRange } from '@/lib/dateUtils';
+import { formatRosterResponse } from '@/lib/messageParser';
 
 const BOT_NAME = 'paul-ai';
 
 /**
- * Vercel serverless function handler for GroupMe webhooks
+ * Next.js API route handler for GroupMe webhooks
  */
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+export async function POST(req: NextRequest) {
   try {
     // Validate environment variables
     const requiredEnvVars = [
@@ -31,15 +23,21 @@ export default async function handler(
     for (const envVar of requiredEnvVars) {
       if (!process.env[envVar]) {
         console.error(`Missing environment variable: ${envVar}`);
-        return res.status(500).json({ error: 'Server configuration error' });
+        return NextResponse.json(
+          { error: 'Server configuration error' },
+          { status: 500 }
+        );
       }
     }
 
-    const payload = req.body as GroupMeWebhookPayload;
+    const payload = (await req.json()) as GroupMeWebhookPayload;
 
     // Validate payload
     if (!payload || !payload.text) {
-      return res.status(400).json({ error: 'Invalid payload' });
+      return NextResponse.json(
+        { error: 'Invalid payload' },
+        { status: 400 }
+      );
     }
 
     // Check if bot is mentioned
@@ -47,7 +45,7 @@ export default async function handler(
 
     if (!isMentioned) {
       // Bot not mentioned, just acknowledge
-      return res.status(200).json({ status: 'ok', action: 'ignored' });
+      return NextResponse.json({ status: 'ok', action: 'ignored' });
     }
 
     // Bot is mentioned, process the request
@@ -91,7 +89,7 @@ export default async function handler(
     console.log('Response posted to GroupMe');
 
     // Return success
-    return res.status(200).json({
+    return NextResponse.json({
       status: 'ok',
       action: 'processed',
       intent: intent,
@@ -115,9 +113,12 @@ export default async function handler(
       console.error('Failed to post error message:', postError);
     }
 
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }
