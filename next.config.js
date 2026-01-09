@@ -1,7 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  // This is an API-only app, no pages needed
-  output: 'standalone',
-}
+const nextConfig = {}
 
 module.exports = nextConfig
