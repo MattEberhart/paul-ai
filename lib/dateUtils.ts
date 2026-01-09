@@ -2,24 +2,25 @@
  * Date utility functions for calculating time windows
  */
 
+export interface DateRange {
+  start: Date;
+  end: Date;
+}
+
 /**
- * Gets the date of the previous Wednesday
- * If today is Wednesday, returns last week's Wednesday
+ * Gets the date of the latest Wednesday (this week's Wednesday)
+ * If today is Wednesday, returns today
  * Otherwise returns the most recent Wednesday
  */
-export function getLastWednesday(): Date {
+export function getLatestWednesday(): Date {
   const now = new Date();
   const currentDay = now.getDay(); // 0 = Sunday, 3 = Wednesday
   
-  // Calculate days to subtract to get to the previous Wednesday
-  // If today is Wednesday (3), we want last week's Wednesday (subtract 7)
-  // If today is Thursday (4), we want yesterday (subtract 1)
-  // If today is Tuesday (2), we want last week's Wednesday (subtract 6)
   let daysToSubtract: number;
   
   if (currentDay === 3) {
-    // Today is Wednesday, get last week's Wednesday
-    daysToSubtract = 7;
+    // Today is Wednesday, return today
+    daysToSubtract = 0;
   } else if (currentDay > 3) {
     // Thursday (4) through Saturday (6), get this week's Wednesday
     daysToSubtract = currentDay - 3;
@@ -28,11 +29,49 @@ export function getLastWednesday(): Date {
     daysToSubtract = currentDay + 4; // 0->4, 1->5, 2->6
   }
   
-  const lastWednesday = new Date(now);
-  lastWednesday.setDate(now.getDate() - daysToSubtract);
-  lastWednesday.setHours(0, 0, 0, 0); // Set to start of day
+  const latestWednesday = new Date(now);
+  latestWednesday.setDate(now.getDate() - daysToSubtract);
+  latestWednesday.setHours(0, 0, 0, 0); // Set to start of day
   
-  return lastWednesday;
+  return latestWednesday;
+}
+
+/**
+ * Gets the date of the previous Wednesday
+ * If today is Wednesday, returns last week's Wednesday
+ * Otherwise returns the most recent Wednesday
+ * @deprecated Use getLatestWednesday() instead
+ */
+export function getLastWednesday(): Date {
+  return getLatestWednesday();
+}
+
+/**
+ * Gets the date range for "this week"
+ * Returns: {start: latest Wednesday, end: today}
+ */
+export function getThisWeekRange(): DateRange {
+  const start = getLatestWednesday();
+  const end = new Date();
+  end.setHours(23, 59, 59, 999); // End of today
+  
+  return { start, end };
+}
+
+/**
+ * Gets the date range for "last week"
+ * Returns: {start: two Wednesdays ago, end: latest Wednesday (exclusive)}
+ */
+export function getLastWeekRange(): DateRange {
+  const latestWednesday = getLatestWednesday();
+  const start = new Date(latestWednesday);
+  start.setDate(latestWednesday.getDate() - 7); // Go back 7 days to get two Wednesdays ago
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(latestWednesday);
+  end.setHours(0, 0, 0, 0); // Start of latest Wednesday (exclusive end)
+  
+  return { start, end };
 }
 
 /**

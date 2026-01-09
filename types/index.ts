@@ -41,6 +41,12 @@ export interface PlayerAnalysis {
   totalCount: number;
 }
 
+export type WeekIntent = 'this_week' | 'last_week';
+
+export interface IntentDetection {
+  intent: WeekIntent;
+}
+
 // Environment Variables
 export interface EnvVars {
   GROQ_API_KEY: string;

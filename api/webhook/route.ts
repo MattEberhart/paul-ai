@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { GroupMeWebhookPayload } from '../../types';
 import { GroupMeClient } from '../../lib/groupme';
 import { GroqClient } from '../../lib/groq';
-import { getLastWednesday } from '../../lib/dateUtils';
+import { getThisWeekRange, getLastWeekRange } from '../../lib/dateUtils';
 import { formatRosterResponse } from '../../lib/messageParser';
 
 const BOT_NAME = 'paul-ai';
@@ -62,12 +62,16 @@ export default async function handler(
 
     const groqClient = new GroqClient(process.env.GROQ_API_KEY!);
 
-    // Get the date of the previous Wednesday
-    const lastWednesday = getLastWednesday();
-    console.log(`Fetching messages since: ${lastWednesday.toISOString()}`);
+    // Detect user intent (last week vs this week)
+    const intent = await groqClient.detectIntent(payload.text);
+    console.log(`Detected intent: ${intent}`);
 
-    // Fetch messages since last Wednesday
-    const messages = await groupMeClient.fetchMessagesSince(lastWednesday);
+    // Get the appropriate date range based on intent
+    const dateRange = intent === 'last_week' ? getLastWeekRange() : getThisWeekRange();
+    console.log(`Fetching messages from ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
+
+    // Fetch messages within the date range
+    const messages = await groupMeClient.fetchMessagesInRange(dateRange.start, dateRange.end);
     console.log(`Fetched ${messages.length} messages`);
 
     // Analyze messages with Groq
@@ -79,8 +83,8 @@ export default async function handler(
       status: analysis.gameStatus,
     });
 
-    // Format the response
-    const responseText = formatRosterResponse(analysis);
+    // Format the response with the week intent
+    const responseText = formatRosterResponse(analysis, intent);
 
     // Post response to GroupMe
     await groupMeClient.postMessage(responseText);
@@ -90,6 +94,7 @@ export default async function handler(
     return res.status(200).json({
       status: 'ok',
       action: 'processed',
+      intent: intent,
       messageCount: messages.length,
       playerCount: analysis.totalCount,
     });

@@ -19,9 +19,17 @@ export class GroupMeClient {
   /**
    * Fetches messages from a group since a specific date
    * GroupMe API returns messages in reverse chronological order (newest first)
+   * @deprecated Use fetchMessagesInRange() instead
    */
   async fetchMessagesSince(sinceDate: Date): Promise<GroupMeMessage[]> {
-    const sinceTimestamp = Math.floor(sinceDate.getTime() / 1000);
+    return this.fetchMessagesInRange(sinceDate, new Date());
+  }
+
+  /**
+   * Fetches messages from a group within a date range
+   * GroupMe API returns messages in reverse chronological order (newest first)
+   */
+  async fetchMessagesInRange(startDate: Date, endDate: Date): Promise<GroupMeMessage[]> {
     const allMessages: GroupMeMessage[] = [];
     let beforeId: string | undefined;
 
@@ -50,18 +58,18 @@ export class GroupMeClient {
           break;
         }
 
-        // Filter messages that are after sinceDate
+        // Filter messages within the date range
         const relevantMessages = messages.filter(msg => {
           const msgDate = new Date(msg.created_at * 1000);
-          return msgDate >= sinceDate;
+          return msgDate >= startDate && msgDate <= endDate;
         });
 
         allMessages.push(...relevantMessages);
 
-        // If we got messages older than sinceDate, we can stop
+        // If we got messages older than startDate, we can stop
         const oldestMessage = messages[messages.length - 1];
         const oldestDate = new Date(oldestMessage.created_at * 1000);
-        if (oldestDate < sinceDate) {
+        if (oldestDate < startDate) {
           break;
         }
 

@@ -1,12 +1,15 @@
-import type { PlayerAnalysis } from '../types';
+import type { PlayerAnalysis, WeekIntent } from '../types';
 
 /**
  * Formats the player analysis into a readable GroupMe message
  */
-export function formatRosterResponse(analysis: PlayerAnalysis): string {
+export function formatRosterResponse(analysis: PlayerAnalysis, weekIntent: WeekIntent = 'this_week'): string {
   const lines: string[] = [];
   
-  lines.push('📋 This Week\'s Roster (since last Wednesday):');
+  const weekLabel = weekIntent === 'last_week' 
+    ? '📋 Last Week\'s Roster:' 
+    : '📋 This Week\'s Roster (since last Wednesday):';
+  lines.push(weekLabel);
   lines.push('');
 
   // Confirmed players

@@ -1,5 +1,5 @@
 import Groq from 'groq-sdk';
-import type { GroupMeMessage, PlayerAnalysis } from '../types';
+import type { GroupMeMessage, PlayerAnalysis, IntentDetection, WeekIntent } from '../types';
 
 const SYSTEM_PROMPT = `You are analyzing GroupMe chat messages for a pickup basketball game roster tracker.
 
@@ -111,6 +111,77 @@ export class GroqClient {
     } catch (error) {
       console.error('Error analyzing messages with Groq:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Detects user intent from message text to determine if they want "last week" or "this week"
+   */
+  async detectIntent(messageText: string): Promise<WeekIntent> {
+    const INTENT_PROMPT = `You are analyzing a user message to determine their intent for viewing a basketball game roster.
+
+The user can ask for:
+- "this week" (or current week, this week's game, etc.) - default if unclear
+- "last week" (or previous week, last week's game, etc.)
+
+Return a JSON object with this exact structure:
+{
+  "intent": "this_week" | "last_week"
+}
+
+Examples:
+- "who's in?" → "this_week"
+- "show me last week's roster" → "last_week"
+- "what about this week?" → "this_week"
+- "last week" → "last_week"
+- "@paul-ai" → "this_week" (default)
+- "roster" → "this_week" (default)`;
+
+    try {
+      const completion = await this.client.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: INTENT_PROMPT,
+          },
+          {
+            role: 'user',
+            content: `Analyze this message and determine the user's intent: "${messageText}"`,
+          },
+        ],
+        model: 'llama-3.1-8b-instant', // Smaller, faster model for simple intent detection
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+      });
+
+      const responseText = completion.choices[0]?.message?.content;
+      if (!responseText) {
+        // Default to "this_week" if no response
+        return 'this_week';
+      }
+
+      try {
+        const result = JSON.parse(responseText) as IntentDetection;
+        // Validate intent value
+        if (result.intent === 'last_week' || result.intent === 'this_week') {
+          return result.intent;
+        }
+        return 'this_week'; // Default fallback
+      } catch (parseError) {
+        // Try to extract JSON if wrapped in markdown
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const result = JSON.parse(jsonMatch[0]) as IntentDetection;
+          if (result.intent === 'last_week' || result.intent === 'this_week') {
+            return result.intent;
+          }
+        }
+        return 'this_week'; // Default fallback
+      }
+    } catch (error) {
+      console.error('Error detecting intent with Groq:', error);
+      // Default to "this_week" on error
+      return 'this_week';
     }
   }
 }
