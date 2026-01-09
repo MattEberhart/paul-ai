@@ -70,7 +70,7 @@ export class GroqClient {
             content: userPrompt,
           },
         ],
-        model: 'llama-3.1-70b-versatile', // Fast and cost-effective model
+        model: 'llama-3.3-70b-versatile', // Fast and cost-effective model
         temperature: 0.1, // Low temperature for consistent parsing
         response_format: { type: 'json_object' },
       });

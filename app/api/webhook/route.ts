@@ -5,6 +5,10 @@ import { GroqClient } from '@/lib/groq';
 import { getThisWeekRange, getLastWeekRange } from '@/lib/dateUtils';
 import { formatRosterResponse } from '@/lib/messageParser';
 
+// Ensure this runs as a serverless function on Vercel
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const BOT_NAME = 'paul-ai';
 
 /**
