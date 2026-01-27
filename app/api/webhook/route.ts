@@ -69,48 +69,85 @@ export async function POST(req: NextRequest) {
 
     const groqClient = new GroqClient(process.env.GROQ_API_KEY!);
 
-    // Detect user intent (last week vs this week)
+    // Detect user intent (last week, this week, or generic question)
     const intent = await groqClient.detectIntent(payload.text);
     console.log(`Detected intent: ${intent}`);
 
-    // Get the appropriate date range based on intent
-    const dateRange = intent === 'last_week' ? getLastWeekRange() : getThisWeekRange();
-    console.log(`Fetching messages from ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
+    // Handle generic questions differently from roster requests
+    if (intent === 'generic_question') {
+      // For generic questions, fetch messages from this week
+      const dateRange = getThisWeekRange();
+      console.log(`Fetching messages from ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
 
-    // Fetch messages within the date range
-    const messages = await groupMeClient.fetchMessagesInRange(dateRange.start, dateRange.end);
-    console.log(`Fetched ${messages.length} messages`);
+      // Fetch messages within the date range
+      const messages = await groupMeClient.fetchMessagesInRange(dateRange.start, dateRange.end);
+      console.log(`Fetched ${messages.length} messages`);
 
-    // Filter out paul-ai's own messages from analysis (ignore bot's own roster posts)
-    const filteredMessages = messages.filter(
-      (msg) => msg.name.toLowerCase() !== BOT_NAME.toLowerCase()
-    );
-    console.log(`Filtered to ${filteredMessages.length} messages (excluded ${messages.length - filteredMessages.length} bot messages)`);
+      // Filter out paul-ai's own messages
+      const filteredMessages = messages.filter(
+        (msg) => msg.name.toLowerCase() !== BOT_NAME.toLowerCase()
+      );
+      console.log(`Filtered to ${filteredMessages.length} messages (excluded ${messages.length - filteredMessages.length} bot messages)`);
 
-    // Analyze messages with Groq
-    const analysis = await groqClient.analyzeMessages(filteredMessages);
-    console.log('Analysis complete:', {
-      confirmed: analysis.confirmedPlayers.length,
-      plusOnes: analysis.plusOnes.length,
-      withdrawn: analysis.withdrawnPlayers.length,
-      status: analysis.gameStatus,
-    });
+      // Answer the question based on chat history
+      const answer = await groqClient.answerQuestion(payload.text, filteredMessages);
+      console.log('Answer generated');
 
-    // Format the response with the week intent
-    const responseText = formatRosterResponse(analysis, intent);
+      // Post answer to GroupMe
+      await groupMeClient.postMessage(answer);
+      console.log(`Response posted to GroupMe ${answer}`);
 
-    // Post response to GroupMe
-    await groupMeClient.postMessage(responseText);
-    console.log('Response posted to GroupMe');
+      // Return success
+      return NextResponse.json({
+        status: 'ok',
+        action: 'processed',
+        intent: intent,
+        messageCount: filteredMessages.length,
+      });
+    } else {
+      // Handle roster requests (this_week or last_week)
+      // Default to this_week if intent is invalid
+      const rosterIntent = intent === 'last_week' ? 'last_week' : 'this_week';
+      
+      // Get the appropriate date range based on intent
+      const dateRange = rosterIntent === 'last_week' ? getLastWeekRange() : getThisWeekRange();
+      console.log(`Fetching messages from ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
 
-    // Return success
-    return NextResponse.json({
-      status: 'ok',
-      action: 'processed',
-      intent: intent,
-      messageCount: filteredMessages.length,
-      playerCount: analysis.totalCount,
-    });
+      // Fetch messages within the date range
+      const messages = await groupMeClient.fetchMessagesInRange(dateRange.start, dateRange.end);
+      console.log(`Fetched ${messages.length} messages`);
+
+      // Filter out paul-ai's own messages from analysis (ignore bot's own roster posts)
+      const filteredMessages = messages.filter(
+        (msg) => msg.name.toLowerCase() !== BOT_NAME.toLowerCase()
+      );
+      console.log(`Filtered to ${filteredMessages.length} messages (excluded ${messages.length - filteredMessages.length} bot messages)`);
+
+      // Analyze messages with Groq
+      const analysis = await groqClient.analyzeMessages(filteredMessages);
+      console.log('Analysis complete:', {
+        confirmed: analysis.confirmedPlayers.length,
+        plusOnes: analysis.plusOnes.length,
+        withdrawn: analysis.withdrawnPlayers.length,
+        status: analysis.gameStatus,
+      });
+
+      // Format the response with the week intent
+      const responseText = formatRosterResponse(analysis, rosterIntent);
+
+      // Post response to GroupMe
+      await groupMeClient.postMessage(responseText);
+      console.log('Response posted to GroupMe ${responseText}');
+
+      // Return success
+      return NextResponse.json({
+        status: 'ok',
+        action: 'processed',
+        intent: rosterIntent,
+        messageCount: filteredMessages.length,
+        playerCount: analysis.totalCount,
+      });
+    }
   } catch (error) {
     console.error('Error processing webhook:', error);
     

@@ -42,7 +42,7 @@ export interface PlayerAnalysis {
   totalCount: number;
 }
 
-export type WeekIntent = 'this_week' | 'last_week';
+export type WeekIntent = 'this_week' | 'last_week' | 'generic_question';
 
 export interface IntentDetection {
   intent: WeekIntent;
