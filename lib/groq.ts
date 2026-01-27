@@ -8,6 +8,7 @@ Your task is to analyze messages and extract:
 2. Players who mentioned bringing +1 guests (track the inviter's name and count)
 3. Players who initially said "in" but later said "out" or withdrew (e.g., "can't make it", "out", "not coming")
 4. Whether the game was cancelled (look for phrases like "game off", "cancelled", "not enough players", "call it off")
+5. If the game is cancelled, determine whose fault it is - provide a funny, lighthearted jab at someone who messaged in the last week based on their messages or behavior
 
 IMPORTANT RULES:
 - Process messages chronologically - later messages override earlier ones
@@ -15,6 +16,8 @@ IMPORTANT RULES:
 - +1 guests should be tracked with the inviter's name (the person who said they're bringing someone)
 - Use the actual names from the messages (the "name" field)
 - Return valid JSON only, no markdown formatting
+- The "whoseFault" field should ONLY be included when gameStatus is "cancelled"
+- Make "whoseFault" a funny, playful jab at someone who messaged - be creative and lighthearted
 
 Return a JSON object with this exact structure:
 {
@@ -22,7 +25,8 @@ Return a JSON object with this exact structure:
   "plusOnes": [{"inviter": "Name", "guestCount": 1}, ...],
   "withdrawnPlayers": ["Name1", ...],
   "gameStatus": "active" | "cancelled",
-  "cancellationReason": "optional reason if cancelled"
+  "cancellationReason": "optional reason if cancelled",
+  "whoseFault": "optional funny jab - only include when gameStatus is 'cancelled'"
 }`;
 
 export class GroqClient {
@@ -70,7 +74,7 @@ export class GroqClient {
             content: userPrompt,
           },
         ],
-        model: 'llama-3.3-70b-versatile', // Fast and cost-effective model
+        model: 'openai/gpt-oss-120b', // Highest accuracy model
         temperature: 0.1, // Low temperature for consistent parsing
         response_format: { type: 'json_object' },
       });
@@ -99,6 +103,11 @@ export class GroqClient {
       analysis.plusOnes = analysis.plusOnes || [];
       analysis.withdrawnPlayers = analysis.withdrawnPlayers || [];
       analysis.gameStatus = analysis.gameStatus || 'active';
+      
+      // Set whoseFault default if game is cancelled and LLM didn't provide it
+      if (analysis.gameStatus === 'cancelled' && !analysis.whoseFault) {
+        analysis.whoseFault = 'When in doubt, Miles';
+      }
       
       // Calculate total count (confirmed players + +1 guests)
       const plusOneCount = analysis.plusOnes.reduce(

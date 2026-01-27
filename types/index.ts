@@ -38,6 +38,7 @@ export interface PlayerAnalysis {
   withdrawnPlayers: string[];
   gameStatus: 'active' | 'cancelled';
   cancellationReason?: string;
+  whoseFault?: string;
   totalCount: number;
 }
 

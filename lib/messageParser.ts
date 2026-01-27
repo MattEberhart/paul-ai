@@ -55,6 +55,9 @@ export function formatRosterResponse(analysis: PlayerAnalysis, weekIntent: WeekI
     if (analysis.cancellationReason) {
       lines.push(`Reason: ${analysis.cancellationReason}`);
     }
+    if (analysis.whoseFault) {
+      lines.push(`🎯 Whose fault? ${analysis.whoseFault}`);
+    }
   } else {
     const minPlayers = 10;
     const currentCount = analysis.totalCount;
